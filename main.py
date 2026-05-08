@@ -1,15 +1,18 @@
+import re
 import requests
 import json
 import os
+from bs4 import BeautifulSoup
 from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
 SEEN_FILE = os.environ.get("SEEN_FILE_PATH", "seen_trades.json")
-POLITICIAN = "Nancy Pelosi"
+
+PELOSI_URL = "https://www.capitoltrades.com/trades?politician=P000197&pageSize=96&page=1"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 def load_seen():
     if os.path.exists(SEEN_FILE):
@@ -22,33 +25,44 @@ def save_seen(seen):
         json.dump(list(seen), f)
 
 def fetch_trades():
-    url = f"https://finnhub.io/api/v1/stock/congressional-trading?token={FINNHUB_API_KEY}"
-    r = requests.get(url, timeout=15)
+    r = requests.get(PELOSI_URL, headers=HEADERS, timeout=15)
     r.raise_for_status()
-    data = r.json()
-    return data.get("data", [])
+    soup = BeautifulSoup(r.text, "html.parser")
+    rows = soup.select("tbody > tr")
+
+    trades = []
+    for row in rows:
+        cells = [c.text.strip() for c in row.find_all("td")]
+        if len(cells) < 8:
+            continue
+        ticker_match = re.search(r'([A-Z.]+):US', cells[1])
+        ticker = ticker_match.group(1) if ticker_match else "N/A"
+        trades.append({
+            "ticker": ticker,
+            "asset": cells[1],
+            "transactionDate": cells[3],
+            "type": cells[6],
+            "amount": cells[7],
+        })
+
+    return trades
 
 def post_to_discord(trade):
-    ticker = trade.get("symbol", "N/A")
-    tx_type = trade.get("transactionType", "N/A").upper()
-    amount = trade.get("amount", "N/A")
-    date = trade.get("transactionDate", "N/A")
-    asset = trade.get("assetType", "N/A")
-
-    color = 0x00FF00 if "purchase" in tx_type.lower() else 0xFF0000
+    tx_type = trade["type"].upper()
+    color = 0x00FF00 if trade["type"] == "buy" else 0xFF0000
 
     embed = {
         "embeds": [{
             "title": "🏛️ Nancy Pelosi Trade Alert",
             "color": color,
             "fields": [
-                {"name": "Ticker", "value": ticker,  "inline": True},
-                {"name": "Type",   "value": tx_type, "inline": True},
-                {"name": "Amount", "value": amount,  "inline": True},
-                {"name": "Date",   "value": date,    "inline": True},
-                {"name": "Asset",  "value": asset,   "inline": False},
+                {"name": "Ticker", "value": trade["ticker"],          "inline": True},
+                {"name": "Type",   "value": tx_type,                  "inline": True},
+                {"name": "Amount", "value": trade["amount"],          "inline": True},
+                {"name": "Date",   "value": trade["transactionDate"], "inline": True},
+                {"name": "Asset",  "value": trade["asset"],           "inline": False},
             ],
-            "footer": {"text": "Source: finnhub.io"},
+            "footer": {"text": "Source: capitoltrades.com"},
             "timestamp": datetime.utcnow().isoformat()
         }]
     }
@@ -61,11 +75,7 @@ def run():
 
     new_count = 0
     for trade in trades:
-        if POLITICIAN not in trade.get("name", ""):
-            continue
-
-        trade_id = f"{trade.get('transactionDate')}_{trade.get('symbol')}_{trade.get('amount')}"
-
+        trade_id = f"{trade['transactionDate']}_{trade['ticker']}_{trade['amount']}"
         if trade_id not in seen:
             post_to_discord(trade)
             seen.add(trade_id)
