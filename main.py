@@ -22,7 +22,7 @@ def save_seen(seen):
         json.dump(list(seen), f)
 
 def fetch_trades():
-    url = f"https://financialmodelingprep.com/stable/house-trading?apikey={FMP_API_KEY}"
+    url = f"https://financialmodelingprep.com/api/v4/house-disclosure?page=0&apikey={FMP_API_KEY}"
     r = requests.get(url, timeout=15)
     r.raise_for_status()
     return r.json()
@@ -63,7 +63,7 @@ def run():
         if POLITICIAN not in trade.get("representative", ""):
             continue
 
-        trade_id = f"{trade.get('transactionDate')}_{trade.get('ticker')}_{trade.get('amount')}"
+        trade_id = f"{trade.get('transactionDate') or trade.get('transaction_date')}_{trade.get('ticker')}_{trade.get('amount')}"
 
         if trade_id not in seen:
             post_to_discord(trade)
