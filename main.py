@@ -1,12 +1,13 @@
 import requests
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+FMP_API_KEY = os.environ.get("FMP_API_KEY")
 SEEN_FILE = os.environ.get("SEEN_FILE_PATH", "seen_trades.json")
 POLITICIAN = "Nancy Pelosi"
 
@@ -21,7 +22,7 @@ def save_seen(seen):
         json.dump(list(seen), f)
 
 def fetch_trades():
-    url = "https://housestockwatcher.com/api"
+    url = f"https://financialmodelingprep.com/stable/house-trading?apikey={FMP_API_KEY}"
     r = requests.get(url, timeout=15)
     r.raise_for_status()
     return r.json()
@@ -30,23 +31,23 @@ def post_to_discord(trade):
     ticker = trade.get("ticker", "N/A")
     tx_type = trade.get("type", "N/A").upper()
     amount = trade.get("amount", "N/A")
-    date = trade.get("transaction_date", "N/A")
-    asset = trade.get("asset_description", "N/A")
+    date = trade.get("transactionDate", "N/A")
+    asset = trade.get("assetDescription", "N/A")
 
-    color = 0x00FF00 if "purchase" in tx_type.lower() else 0xFF0000  # green buy, red sell
+    color = 0x00FF00 if "purchase" in tx_type.lower() else 0xFF0000
 
     embed = {
         "embeds": [{
-            "title": f"🏛️ Nancy Pelosi Trade Alert",
+            "title": "🏛️ Nancy Pelosi Trade Alert",
             "color": color,
             "fields": [
-                {"name": "Ticker",       "value": ticker,   "inline": True},
-                {"name": "Type",         "value": tx_type,  "inline": True},
-                {"name": "Amount",       "value": amount,   "inline": True},
-                {"name": "Date",         "value": date,     "inline": True},
-                {"name": "Asset",        "value": asset,    "inline": False},
+                {"name": "Ticker", "value": ticker, "inline": True},
+                {"name": "Type",   "value": tx_type, "inline": True},
+                {"name": "Amount", "value": amount,  "inline": True},
+                {"name": "Date",   "value": date,    "inline": True},
+                {"name": "Asset",  "value": asset,   "inline": False},
             ],
-            "footer": {"text": "Source: housestockwatcher.com"},
+            "footer": {"text": "Source: financialmodelingprep.com"},
             "timestamp": datetime.utcnow().isoformat()
         }]
     }
@@ -62,8 +63,7 @@ def run():
         if POLITICIAN not in trade.get("representative", ""):
             continue
 
-        # Unique ID for this trade
-        trade_id = f"{trade.get('transaction_date')}_{trade.get('ticker')}_{trade.get('amount')}"
+        trade_id = f"{trade.get('transactionDate')}_{trade.get('ticker')}_{trade.get('amount')}"
 
         if trade_id not in seen:
             post_to_discord(trade)
