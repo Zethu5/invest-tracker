@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-FMP_API_KEY = os.environ.get("FMP_API_KEY")
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY")
 SEEN_FILE = os.environ.get("SEEN_FILE_PATH", "seen_trades.json")
 POLITICIAN = "Nancy Pelosi"
 
@@ -22,17 +22,18 @@ def save_seen(seen):
         json.dump(list(seen), f)
 
 def fetch_trades():
-    url = f"https://financialmodelingprep.com/api/v4/house-disclosure?page=0&apikey={FMP_API_KEY}"
+    url = f"https://finnhub.io/api/v1/stock/congressional-trading?token={FINNHUB_API_KEY}"
     r = requests.get(url, timeout=15)
     r.raise_for_status()
-    return r.json()
+    data = r.json()
+    return data.get("data", [])
 
 def post_to_discord(trade):
-    ticker = trade.get("ticker", "N/A")
-    tx_type = trade.get("type", "N/A").upper()
+    ticker = trade.get("symbol", "N/A")
+    tx_type = trade.get("transactionType", "N/A").upper()
     amount = trade.get("amount", "N/A")
     date = trade.get("transactionDate", "N/A")
-    asset = trade.get("assetDescription", "N/A")
+    asset = trade.get("assetType", "N/A")
 
     color = 0x00FF00 if "purchase" in tx_type.lower() else 0xFF0000
 
@@ -41,13 +42,13 @@ def post_to_discord(trade):
             "title": "🏛️ Nancy Pelosi Trade Alert",
             "color": color,
             "fields": [
-                {"name": "Ticker", "value": ticker, "inline": True},
+                {"name": "Ticker", "value": ticker,  "inline": True},
                 {"name": "Type",   "value": tx_type, "inline": True},
                 {"name": "Amount", "value": amount,  "inline": True},
                 {"name": "Date",   "value": date,    "inline": True},
                 {"name": "Asset",  "value": asset,   "inline": False},
             ],
-            "footer": {"text": "Source: financialmodelingprep.com"},
+            "footer": {"text": "Source: finnhub.io"},
             "timestamp": datetime.utcnow().isoformat()
         }]
     }
@@ -60,10 +61,10 @@ def run():
 
     new_count = 0
     for trade in trades:
-        if POLITICIAN not in trade.get("representative", ""):
+        if POLITICIAN not in trade.get("name", ""):
             continue
 
-        trade_id = f"{trade.get('transactionDate') or trade.get('transaction_date')}_{trade.get('ticker')}_{trade.get('amount')}"
+        trade_id = f"{trade.get('transactionDate')}_{trade.get('symbol')}_{trade.get('amount')}"
 
         if trade_id not in seen:
             post_to_discord(trade)
