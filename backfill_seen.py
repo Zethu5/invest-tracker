@@ -10,19 +10,18 @@ load_dotenv()
 SEEN_FILE = os.environ.get("SEEN_FILE_PATH", "seen_trades.json")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-NEW_POLITICIANS = [
-    ("Darrell Issa",   "I000056"),
-    ("Nancy Pelosi",   "P000197"),
-    ("Dave McCormick", "M001243"),
-    ("Rick Scott",     "S001217"),
-    ("David Trone",    "T000483"),
+POLITICIANS = [
+    ("Michael McCaul",     "M001157"),
+    ("Ro Khanna",          "K000389"),
+    ("Jefferson Shreve",   "S001229"),
+    ("Josh Gottheimer",    "G000583"),
+    ("Darrell Issa",       "I000056"),
+    ("Richard Blumenthal", "B001277"),
+    ("Nancy Pelosi",       "P000197"),
+    ("Dave McCormick",     "M001243"),
+    ("Rick Scott",         "S001217"),
+    ("David Trone",        "T000483"),
 ]
-
-def load_seen():
-    if os.path.exists(SEEN_FILE):
-        with open(SEEN_FILE) as f:
-            return set(json.load(f))
-    return set()
 
 def save_seen(seen):
     with open(SEEN_FILE, "w") as f:
@@ -49,9 +48,9 @@ def fetch_trades(politician_id):
         })
     return trades
 
-seen = load_seen()
+seen = set()
 
-for name, pid in NEW_POLITICIANS:
+for name, pid in POLITICIANS:
     try:
         trades = fetch_trades(pid)
         for trade in trades:
@@ -62,4 +61,4 @@ for name, pid in NEW_POLITICIANS:
         print(f"[{name}] Error: {e}")
 
 save_seen(seen)
-print("Done. seen_trades.json updated.")
+print(f"Done. seen_trades.json rebuilt with {len(seen)} entries.")
