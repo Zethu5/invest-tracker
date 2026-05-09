@@ -13,16 +13,16 @@ SEEN_FILE = os.environ.get("SEEN_FILE_PATH", "seen_trades.json")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 POLITICIANS = [
-    ("Michael McCaul",      "M001157"),
     ("Ro Khanna",           "K000389"),
-    ("Jefferson Shreve",    "S001229"),
+    ("Michael McCaul",      "M001157"),
+    ("Lisa McClain",        "M001136"),
     ("Josh Gottheimer",     "G000583"),
-    ("Darrell Issa",        "I000056"),
+    ("Gil Cisneros",        "C001123"),
     ("Richard Blumenthal",  "B001277"),
-    ("Nancy Pelosi",        "P000197"),
-    ("Dave McCormick",      "M001243"),
-    ("Rick Scott",          "S001217"),
-    ("David Trone",         "T000483"),
+    ("Rob Bresnahan",       "B001327"),
+    ("Jefferson Shreve",    "S001229"),
+    ("Julie Johnson",       "J000310"),
+    ("Markwayne Mullin",    "M001190"),
 ]
 
 def load_seen():
